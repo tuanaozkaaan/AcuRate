@@ -230,6 +230,9 @@ export default function TeacherHomePage() {
   const teacher = dashboardData.teacher;
   const allCourses = dashboardData.courses || [];
   const totalStudents = dashboardData.total_students || 0;
+  
+  // PO Achievement data from actual PO achievements (must be defined before currentCourses map)
+  const poAchievements = dashboardData.po_achievements || [];
 
   // Remove duplicate courses by course ID AND course name (keep first occurrence)
   const courses = allCourses.filter((course: any, index: number, self: any[]) => {
@@ -420,8 +423,7 @@ export default function TeacherHomePage() {
     ]
   };
 
-  // PO Achievement data from actual PO achievements
-  const poAchievements = dashboardData.po_achievements || [];
+  // PO Achievement labels and data
   const poLabels: string[] = [];
   const poData: number[] = [];
 

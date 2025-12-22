@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Users, BookOpen, Filter, Loader2, AlertTriangle, LogIn } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Filter, Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
@@ -26,7 +26,6 @@ export default function InstitutionAnalytics() {
   const [departmentsData, setDepartmentsData] = useState<any[]>([]);
   const [poTrendsData, setPOTrendsData] = useState<any[]>([]);
   const [performanceData, setPerformanceData] = useState<any>(null);
-  const [courseSuccessData, setCourseSuccessData] = useState<any[]>([]);
   
   // Available departments for filter
   const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
@@ -81,7 +80,7 @@ export default function InstitutionAnalytics() {
       setError(null);
 
       // Fetch all analytics data in parallel, including departments list
-      const [departments, poTrends, performance, courseSuccess, departmentsList] = await Promise.all([
+      const [departments, poTrends, performance, departmentsList] = await Promise.all([
         api.getAnalyticsDepartments(),
         api.getAnalyticsPOTrends({
           semester: selectedSemester || undefined,
@@ -90,18 +89,12 @@ export default function InstitutionAnalytics() {
         api.getAnalyticsPerformanceDistribution({
           department: selectedDepartment !== 'all' ? selectedDepartment : undefined,
         }),
-        api.getAnalyticsCourseSuccess({
-          department: selectedDepartment !== 'all' ? selectedDepartment : undefined,
-          semester: selectedSemester || undefined,
-          academic_year: selectedYear || undefined,
-        }),
         api.getDepartmentsList(), // Get all departments (from Department table and User department fields)
       ]);
 
       setDepartmentsData(departments.departments || []);
       setPOTrendsData(poTrends.program_outcomes || []);
       setPerformanceData(performance);
-      setCourseSuccessData(courseSuccess.courses || []);
 
       // Use departments list from getDepartmentsList (includes all departments)
       const deptNames = departmentsList.map((d: any) => d.name.trim()).filter((name: string) => name);
@@ -216,12 +209,6 @@ export default function InstitutionAnalytics() {
     { name: '61-80', value: performanceData.distribution['61-80'] },
     { name: '81-100', value: performanceData.distribution['81-100'] },
   ] : [];
-
-  const courseSuccessChartData = courseSuccessData.slice(0, 10).map(course => ({
-    name: course.course_code,
-    successRate: course.success_rate,
-    avgGrade: course.average_grade || 0,
-  }));
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
@@ -468,36 +455,6 @@ export default function InstitutionAnalytics() {
                 <p>No performance data available</p>
               </div>
             )}
-          </motion.div>
-
-          {/* Course Success Rates Chart */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.5 }}
-            className={`backdrop-blur-xl ${themeClasses.card} p-6 shadow-2xl rounded-2xl`}
-          >
-            <h2 className={`text-xl font-bold ${whiteTextClass} mb-4 flex items-center gap-2`}>
-              <BookOpen className="w-5 h-5" style={{ color: accentStart }} />
-              Course Success Rates (Top 10)
-            </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={courseSuccessChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#ffffff20' : '#e5e7eb'} />
-                <XAxis dataKey="name" stroke={secondaryTextClass} fontSize={12} angle={-45} textAnchor="end" height={80} />
-                <YAxis stroke={secondaryTextClass} fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.95)',
-                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
-                    borderRadius: '8px',
-                  }}
-                />
-                <Legend />
-                <Bar dataKey="successRate" fill={accentStart} name="Success Rate %" />
-                <Bar dataKey="avgGrade" fill={accentEnd} name="Avg Grade" />
-              </BarChart>
-            </ResponsiveContainer>
           </motion.div>
         </div>
       </div>
