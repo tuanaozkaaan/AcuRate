@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BarChart3, TrendingUp, Users, Filter, Loader2, AlertTriangle, LogIn } from 'lucide-react';
+import { BarChart3, TrendingUp, Users, Filter, Loader2, AlertTriangle, LogIn, Award } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useTheme } from 'next-themes';
 import { useRouter } from 'next/navigation';
@@ -26,6 +26,7 @@ export default function InstitutionAnalytics() {
   const [departmentsData, setDepartmentsData] = useState<any[]>([]);
   const [poTrendsData, setPOTrendsData] = useState<any[]>([]);
   const [performanceData, setPerformanceData] = useState<any>(null);
+  const [courseSuccessData, setCourseSuccessData] = useState<any[]>([]);
   
   // Available departments for filter
   const [availableDepartments, setAvailableDepartments] = useState<string[]>([]);
@@ -80,7 +81,7 @@ export default function InstitutionAnalytics() {
       setError(null);
 
       // Fetch all analytics data in parallel, including departments list
-      const [departments, poTrends, performance, departmentsList] = await Promise.all([
+      const [departments, poTrends, performance, departmentsList, courseSuccess] = await Promise.all([
         api.getAnalyticsDepartments(),
         api.getAnalyticsPOTrends({
           semester: selectedSemester || undefined,
@@ -90,11 +91,17 @@ export default function InstitutionAnalytics() {
           department: selectedDepartment !== 'all' ? selectedDepartment : undefined,
         }),
         api.getDepartmentsList(), // Get all departments (from Department table and User department fields)
+        api.getAnalyticsCourseSuccess({
+          department: selectedDepartment !== 'all' ? selectedDepartment : undefined,
+          semester: selectedSemester || undefined,
+          academic_year: selectedYear || undefined,
+        }),
       ]);
 
       setDepartmentsData(departments.departments || []);
       setPOTrendsData(poTrends.program_outcomes || []);
       setPerformanceData(performance);
+      setCourseSuccessData(courseSuccess.courses || []);
 
       // Use departments list from getDepartmentsList (includes all departments)
       const deptNames = departmentsList.map((d: any) => d.name.trim()).filter((name: string) => name);
@@ -209,6 +216,15 @@ export default function InstitutionAnalytics() {
     { name: '61-80', value: performanceData.distribution['61-80'] },
     { name: '81-100', value: performanceData.distribution['81-100'] },
   ] : [];
+
+  // Course Success Rate Chart Data (Top 10 courses by success rate)
+  const courseSuccessChartData = courseSuccessData.slice(0, 10).map(course => ({
+    name: `${course.course_code}`,
+    fullName: course.course_name,
+    successRate: course.success_rate || 0,
+    averageGrade: course.average_grade || 0,
+    students: course.total_students || 0,
+  }));
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6'];
 
@@ -361,11 +377,73 @@ export default function InstitutionAnalytics() {
             </ResponsiveContainer>
           </motion.div>
 
+          {/* Course Success Rate Chart */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className={`backdrop-blur-xl ${themeClasses.card} p-6 shadow-2xl rounded-2xl`}
+          >
+            <h2 className={`text-xl font-bold ${whiteTextClass} mb-4 flex items-center gap-2`}>
+              <Award className="w-5 h-5" style={{ color: accentStart }} />
+              Course Success Rate (Top 10)
+            </h2>
+            {courseSuccessChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={courseSuccessChartData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#ffffff20' : '#e5e7eb'} />
+                  <XAxis type="number" domain={[0, 100]} stroke={secondaryTextClass} fontSize={12} unit="%" />
+                  <YAxis 
+                    dataKey="name" 
+                    type="category" 
+                    stroke={secondaryTextClass} 
+                    fontSize={12}
+                    width={80}
+                  />
+                  <Tooltip
+                    formatter={(value: any, name: string, props: any) => {
+                      if (name === 'successRate') {
+                        return [`${value}%`, 'Success Rate'];
+                      }
+                      if (name === 'averageGrade') {
+                        return [`${value}%`, 'Average Grade'];
+                      }
+                      if (name === 'students') {
+                        return [`${value}`, 'Students'];
+                      }
+                      return [value, name];
+                    }}
+                    labelFormatter={(label) => {
+                      const course = courseSuccessChartData.find(c => c.name === label);
+                      return course ? `${course.fullName} (${course.name})` : label;
+                    }}
+                    contentStyle={{
+                      backgroundColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.95)',
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)'}`,
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Legend />
+                  <Bar 
+                    dataKey="successRate" 
+                    fill={accentStart} 
+                    name="Success Rate (%)"
+                    radius={[0, 4, 4, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className={`h-[300px] flex items-center justify-center ${secondaryTextClass}`}>
+                <p>No course success data available</p>
+              </div>
+            )}
+          </motion.div>
+
           {/* Performance Distribution Chart */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
+            transition={{ delay: 0.5 }}
             className={`backdrop-blur-xl ${themeClasses.card} p-6 shadow-2xl rounded-2xl`}
           >
             <h2 className={`text-xl font-bold ${whiteTextClass} mb-6 flex items-center gap-2`}>
