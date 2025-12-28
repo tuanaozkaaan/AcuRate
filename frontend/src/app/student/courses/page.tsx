@@ -1,12 +1,12 @@
 // app/student/courses/page.tsx
 'use client';
 
-import { motion } from 'framer-motion';
-import { BookOpen, AlertTriangle, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { BookOpen, AlertTriangle, Loader2, Info, X } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors'; 
 import Link from 'next/link';
-import { api, type Enrollment, type StudentGrade, type StudentPOAchievement, type Assessment } from '@/lib/api';
+import { api, type Enrollment, type StudentGrade, type StudentPOAchievement, type Assessment, type Course } from '@/lib/api';
 
 // --- YARDIMCI FONKSİYONLAR ve Sabitler (Aynı kalır) ---
 
@@ -34,6 +34,9 @@ interface CourseData {
   credits: number;
   feedback: string;
   courseId: number;
+  description?: string;
+  code?: string;
+  department?: string;
 }
 
 // --- ANA BİLEŞEN: COURSES PAGE ---
@@ -45,7 +48,9 @@ export default function CoursesPage() {
   const [coursesData, setCoursesData] = useState<CourseData[]>([]);
   const [filter, setFilter] = useState('all');
   const [sortKey, setSortKey] = useState('semester');
-  const [sortOrder, setSortOrder] = useState('desc'); 
+  const [sortOrder, setSortOrder] = useState('desc');
+  const [selectedCourse, setSelectedCourse] = useState<CourseData | null>(null);
+  const [courseDetails, setCourseDetails] = useState<Course | null>(null); 
 
   useEffect(() => {
     setMounted(true);
@@ -209,7 +214,10 @@ export default function CoursesPage() {
               ...course,
               instructor: courseDetail.teacher_name || '-',
               credits: courseDetail.credits || 0,
-              semester: `${courseDetail.semester || ''} ${courseDetail.academic_year || ''}`.trim() || course.semester
+              semester: `${courseDetail.semester_display || courseDetail.semester || ''} ${courseDetail.academic_year || ''}`.trim() || course.semester,
+              description: courseDetail.description || '',
+              code: courseDetail.code || course.id,
+              department: courseDetail.department || ''
             };
           } catch {
             return course;
@@ -293,6 +301,38 @@ export default function CoursesPage() {
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
+  const handleCourseClick = async (course: CourseData) => {
+    setSelectedCourse(course);
+    try {
+      const details = await api.getCourse(course.courseId);
+      setCourseDetails(details);
+    } catch (err) {
+      console.error('Failed to fetch course details:', err);
+      setCourseDetails(null);
+    }
+  };
+
+  const getCourseInfo = (course: CourseData, details: Course | null): string => {
+    // If description exists, use it
+    if (details?.description && details.description.trim()) {
+      return details.description.trim();
+    }
+    
+    // Otherwise, generate a descriptive sentence
+    const parts: string[] = [];
+    if (course.code) parts.push(`Course ${course.code}`);
+    if (course.credits > 0) parts.push(`${course.credits} credit${course.credits !== 1 ? 's' : ''}`);
+    if (course.department) parts.push(`offered by ${course.department} department`);
+    if (course.semester) parts.push(`in ${course.semester}`);
+    if (course.instructor && course.instructor !== '-') parts.push(`taught by ${course.instructor}`);
+    
+    if (parts.length === 0) {
+      return `This is ${course.name}, a course you are enrolled in.`;
+    }
+    
+    return `${course.name} is ${parts.join(', ')}.`;
+  };
+
 
   // Loading state
   if (loading) {
@@ -371,10 +411,14 @@ export default function CoursesPage() {
                   key={course.id}
                   variants={item}
                   whileHover={{ scale: 1.01, backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.03)' }}
-                  className="transition-all duration-150"
+                  className="transition-all duration-150 cursor-pointer group"
+                  onClick={() => handleCourseClick(course)}
                 >
                   <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium ${whiteText}`}>
-                    {course.name} <span className={mutedText}>({course.id})</span>
+                    <div className="flex items-center gap-2">
+                      {course.name} <span className={mutedText}>({course.id})</span>
+                      <Info className="w-4 h-4 text-indigo-400 opacity-50 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </td>
                   <td className={`px-6 py-4 whitespace-nowrap text-sm ${mutedText}`}>{course.instructor}</td>
                 </motion.tr>
@@ -406,6 +450,81 @@ export default function CoursesPage() {
           </motion.div>
         )
       )}
+
+      {/* Course Info Modal */}
+      <AnimatePresence>
+        {selectedCourse && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSelectedCourse(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className={`${themeClasses.card} rounded-2xl shadow-2xl max-w-2xl w-full p-6 border ${isDark ? 'border-white/10' : 'border-gray-200'}`}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className={`p-3 rounded-xl ${isDark ? 'bg-indigo-500/20' : 'bg-indigo-100'}`}>
+                    <BookOpen className="w-6 h-6 text-indigo-500" />
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold ${whiteText}`}>
+                      {selectedCourse.name}
+                    </h2>
+                    <p className={`${mutedText} text-sm`}>
+                      {selectedCourse.code || selectedCourse.id} • {selectedCourse.credits} Credit{selectedCourse.credits !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCourse(null)}
+                  className={`p-2 rounded-lg ${isDark ? 'hover:bg-white/10' : 'hover:bg-gray-100'} transition-colors`}
+                >
+                  <X className={`w-5 h-5 ${mutedText}`} />
+                </button>
+              </div>
+
+              <div className={`p-4 rounded-xl ${isDark ? 'bg-white/5' : 'bg-gray-50'} border ${isDark ? 'border-white/10' : 'border-gray-200'}`}>
+                <div className="flex items-start gap-3">
+                  <Info className={`w-5 h-5 mt-0.5 ${mutedText}`} />
+                  <div className="flex-1">
+                    <p className={`${whiteText} leading-relaxed`}>
+                      {getCourseInfo(selectedCourse, courseDetails)}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-4">
+                <div>
+                  <p className={`text-xs ${mutedText} mb-1`}>Instructor</p>
+                  <p className={`${whiteText} font-medium`}>{selectedCourse.instructor}</p>
+                </div>
+                <div>
+                  <p className={`text-xs ${mutedText} mb-1`}>Semester</p>
+                  <p className={`${whiteText} font-medium`}>{selectedCourse.semester}</p>
+                </div>
+                {selectedCourse.department && (
+                  <div>
+                    <p className={`text-xs ${mutedText} mb-1`}>Department</p>
+                    <p className={`${whiteText} font-medium`}>{selectedCourse.department}</p>
+                  </div>
+                )}
+                <div>
+                  <p className={`text-xs ${mutedText} mb-1`}>Status</p>
+                  <p className={`${whiteText} font-medium`}>{selectedCourse.status}</p>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
