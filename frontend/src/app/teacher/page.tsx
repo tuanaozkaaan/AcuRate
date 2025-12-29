@@ -2,7 +2,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { BookOpen, Users, Award, TrendingUp, ArrowUpRight, ArrowDownRight, AlertTriangle, FileText, BarChart3, Target, Loader2, PenSquare, MessageCircle, CalendarDays, Sparkles } from 'lucide-react';
+import { BookOpen, Users, Award, TrendingUp, ArrowUpRight, ArrowDownRight, AlertTriangle, FileText, BarChart3, Target, Loader2, PenSquare, MessageCircle, CalendarDays, Sparkles, PieChart } from 'lucide-react';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
@@ -466,6 +466,63 @@ export default function TeacherHomePage() {
       }
     ]
   };
+
+  // Student Grade Distribution Data
+  const gradeDistribution = {
+    '0-20': 0,
+    '21-40': 0,
+    '41-60': 0,
+    '61-80': 0,
+    '81-100': 0
+  };
+
+  courses.forEach((course: any) => {
+    const enrollments = course.enrollments || [];
+    enrollments.forEach((enrollment: any) => {
+      if (enrollment.final_grade !== null && enrollment.final_grade !== undefined) {
+        const grade = enrollment.final_grade;
+        if (grade <= 20) gradeDistribution['0-20']++;
+        else if (grade <= 40) gradeDistribution['21-40']++;
+        else if (grade <= 60) gradeDistribution['41-60']++;
+        else if (grade <= 80) gradeDistribution['61-80']++;
+        else gradeDistribution['81-100']++;
+      }
+    });
+  });
+
+  const totalStudentsWithGrades = Object.values(gradeDistribution).reduce((sum, count) => sum + count, 0);
+  const hasGradeDistributionData = totalStudentsWithGrades > 0;
+
+  const gradeDistributionData = {
+    labels: ['0-20', '21-40', '41-60', '61-80', '81-100'],
+    datasets: [
+      {
+        label: 'Students',
+        data: [
+          gradeDistribution['0-20'],
+          gradeDistribution['21-40'],
+          gradeDistribution['41-60'],
+          gradeDistribution['61-80'],
+          gradeDistribution['81-100']
+        ],
+        backgroundColor: [
+          'rgba(239, 68, 68, 0.8)',   // red (0-20)
+          'rgba(249, 115, 22, 0.8)',  // orange (21-40)
+          'rgba(251, 191, 36, 0.8)',  // yellow (41-60)
+          'rgba(59, 130, 246, 0.8)',  // blue (61-80)
+          'rgba(16, 185, 129, 0.8)'  // green (81-100)
+        ],
+        borderColor: [
+          'rgb(239, 68, 68)',
+          'rgb(249, 115, 22)',
+          'rgb(251, 191, 36)',
+          'rgb(59, 130, 246)',
+          'rgb(16, 185, 129)'
+        ],
+        borderWidth: 2
+      }
+    ]
+  };
   
   const whiteTextClass = text;
   const accentIconClass = isDark ? 'text-indigo-400' : 'text-indigo-600';
@@ -775,6 +832,58 @@ export default function TeacherHomePage() {
 
             {/* Sağ Sütun (Average LO Outcomes ve Recent Activities) */}
             <div className="space-y-6">
+
+                {/* Student Grade Distribution Pie Chart */}
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.35 }}
+                    className={`backdrop-blur-xl ${themeClasses.card} p-6 shadow-2xl h-96`}
+                >
+                    <h2 className={`text-xl font-bold ${whiteTextClass} mb-4 flex items-center gap-2`}>
+                        <PieChart className={`w-5 h-5 ${accentIconClass}`} />
+                        Student Grade Distribution
+                    </h2>
+                    <div className="h-72 relative">
+                        {hasGradeDistributionData ? (
+                            <>
+                                <Doughnut 
+                                    data={gradeDistributionData} 
+                                    options={{
+                                        ...dynamicDoughnutOptions,
+                                        maintainAspectRatio: false,
+                                        responsive: true,
+                                        plugins: {
+                                            ...dynamicDoughnutOptions.plugins,
+                                            tooltip: {
+                                                ...dynamicDoughnutOptions.plugins?.tooltip,
+                                                callbacks: {
+                                                    label: (context: any) => {
+                                                        const label = context.label || '';
+                                                        const value = context.parsed || 0;
+                                                        const total = context.dataset.data.reduce((a: number, b: number) => a + b, 0);
+                                                        const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                                        return `${label}: ${value} students (${percentage}%)`;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }} 
+                                />
+                                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <div className="text-center">
+                                        <p className={`text-3xl font-bold ${whiteTextClass}`}>{totalStudentsWithGrades}</p>
+                                        <p className={`text-sm ${secondaryTextClass}`}>Total Students</p>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex items-center justify-center h-full">
+                                <p className={secondaryTextClass}>No grade data available</p>
+                            </div>
+                        )}
+                    </div>
+                </motion.div>
 
                 {/* Average LO Outcomes Doughnut Chart */}
                 <motion.div
