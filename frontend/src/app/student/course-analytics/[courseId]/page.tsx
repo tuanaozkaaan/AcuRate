@@ -259,10 +259,47 @@ export default function CourseDetailAnalyticsPage() {
                     className={`${isDark ? 'bg-white/5' : 'bg-white/80'} backdrop-blur-lg rounded-2xl border ${isDark ? 'border-white/10' : 'border-gray-200'} p-6`}
                 >
                     <div className="mb-6">
-                        <h3 className={`text-lg font-semibold ${whiteText} mb-2`}>All Your Grades</h3>
-                        <p className={`text-sm ${mutedText}`}>
-                            Detailed breakdown of all your assessments and grades for this course
-                        </p>
+                        {(() => {
+                            // Get unique assessment types from assessments
+                            const uniqueTypes = Array.from(
+                                new Set(
+                                    assessments
+                                        .map(a => a.type_display || a.assessment_type || '')
+                                        .filter(t => t)
+                                )
+                            );
+                            
+                            // Create title based on assessment types
+                            let title = 'All Your Grades';
+                            if (uniqueTypes.length > 0) {
+                                const typeLabels = uniqueTypes.map(type => {
+                                    // Convert to readable format
+                                    if (type.includes('MIDTERM') || type.includes('Midterm')) return 'Midterm';
+                                    if (type.includes('FINAL') || type.includes('Final')) return 'Final';
+                                    if (type.includes('PROJECT') || type.includes('Project')) return 'Project';
+                                    if (type.includes('QUIZ') || type.includes('Quiz')) return 'Quiz';
+                                    if (type.includes('HOMEWORK') || type.includes('Homework')) return 'Homework';
+                                    if (type.includes('LAB') || type.includes('Lab')) return 'Lab';
+                                    if (type.includes('PRESENTATION') || type.includes('Presentation')) return 'Presentation';
+                                    return type;
+                                });
+                                
+                                if (typeLabels.length <= 3) {
+                                    title = typeLabels.join(', ') + ' Grades';
+                                } else {
+                                    title = `${typeLabels.slice(0, 2).join(', ')} & More Grades`;
+                                }
+                            }
+                            
+                            return (
+                                <>
+                                    <h3 className={`text-lg font-semibold ${whiteText} mb-2`}>{title}</h3>
+                                    <p className={`text-sm ${mutedText}`}>
+                                        Detailed breakdown of all your assessments and grades for this course
+                                    </p>
+                                </>
+                            );
+                        })()}
                     </div>
                     {assessments.length > 0 ? (
                         <div className="overflow-x-auto">
