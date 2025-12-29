@@ -520,10 +520,13 @@ export default function TeacherHomePage() {
                     {teacher?.department || 'Department not set'} • {totalCourses} Courses • {totalStudents} Students
                   </p>
                 </div>
-                <div className="px-4 py-2 rounded-full bg-white/15 text-white text-sm flex items-center gap-2">
+                <Link 
+                  href="/teacher/analytics"
+                  className="px-4 py-2 rounded-full bg-white/15 text-white text-sm flex items-center gap-2 hover:bg-white/25 transition-all cursor-pointer"
+                >
                   <Sparkles className="w-4 h-4" />
                   Performance mode
-                </div>
+                </Link>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
