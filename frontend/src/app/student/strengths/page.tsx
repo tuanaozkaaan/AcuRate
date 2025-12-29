@@ -2,7 +2,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Award, TrendingUp, Target, BookOpen, Star, Loader2, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { Award, TrendingUp, Target, BookOpen, Star, Loader2, AlertTriangle, ArrowLeft, BarChart3 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { useThemeColors } from '@/hooks/useThemeColors';
 import { api, TokenManager, type ProgramOutcome, type StudentPOAchievement, type Enrollment, type Assessment } from '@/lib/api';
@@ -14,9 +14,12 @@ import {
     BarElement, 
     Tooltip, 
     Legend,
-    ArcElement
+    ArcElement,
+    PointElement,
+    LineElement,
+    Filler
 } from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
+import { Bar, Doughnut, Line } from 'react-chartjs-2';
 
 ChartJS.register(
     CategoryScale,
@@ -24,7 +27,10 @@ ChartJS.register(
     BarElement,
     Tooltip,
     Legend,
-    ArcElement
+    ArcElement,
+    PointElement,
+    LineElement,
+    Filler
 );
 
 interface StrengthData {
@@ -276,6 +282,78 @@ export default function StrengthsPage() {
         }
     };
 
+    // Achievement vs Target Comparison Chart Data
+    const achievementVsTargetData = useMemo(() => {
+        const top5 = strengths.slice(0, 5).sort((a, b) => b.achievement - a.achievement);
+        
+        return {
+            labels: top5.map(s => s.code || s.title.substring(0, 10)),
+            datasets: [
+                {
+                    label: 'Achievement (%)',
+                    data: top5.map(s => s.achievement),
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgb(59, 130, 246)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(59, 130, 246)',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                },
+                {
+                    label: 'Target (%)',
+                    data: top5.map(s => s.target),
+                    borderColor: 'rgb(239, 68, 68)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    borderDash: [5, 5],
+                    pointBackgroundColor: 'rgb(239, 68, 68)',
+                    pointBorderColor: '#fff',
+                    pointHoverBackgroundColor: '#fff',
+                    pointHoverBorderColor: 'rgb(239, 68, 68)',
+                    pointRadius: 5,
+                    pointHoverRadius: 7
+                }
+            ]
+        };
+    }, [strengths]);
+
+    const lineChartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { 
+            legend: { 
+                display: true,
+                labels: {
+                    color: mutedText,
+                    usePointStyle: true,
+                    padding: 15
+                }
+            },
+            tooltip: {
+                bodyColor: isDark ? '#FFF' : '#000',
+                titleColor: isDark ? '#FFF' : '#000',
+                backgroundColor: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(255,255,255,0.8)',
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100,
+                grid: { color: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)' },
+                ticks: { color: mutedText, stepSize: 20 }
+            },
+            x: {
+                grid: { color: isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)' },
+                ticks: { color: mutedText }
+            }
+        }
+    };
+
     if (!mounted) {
         return null;
     }
@@ -331,7 +409,7 @@ export default function StrengthsPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
                 {/* Chart */}
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
@@ -448,6 +526,40 @@ export default function StrengthsPage() {
                     </div>
                 </motion.div>
             </div>
+
+            {/* Achievement vs Target Comparison Chart */}
+            {strengths.length > 0 && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 }}
+                    className={`backdrop-blur-xl ${themeClasses.card} p-6 shadow-2xl mb-6`}
+                >
+                    <h2 className={`text-xl font-bold ${whiteText} mb-4 flex items-center gap-2`}>
+                        <BarChart3 className="w-5 h-5 text-indigo-500" />
+                        Achievement vs Target Comparison
+                    </h2>
+                    <div className="h-80">
+                        <Line data={achievementVsTargetData} options={lineChartOptions} />
+                    </div>
+                    <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className={`p-3 rounded-lg ${isDark ? 'bg-blue-500/10 border border-blue-500/20' : 'bg-blue-50 border border-blue-200'}`}>
+                            <p className={`text-xs ${mutedText} mb-1`}>Average Achievement</p>
+                            <p className={`text-2xl font-bold text-blue-500`}>{Math.round(avgAchievement)}%</p>
+                        </div>
+                        <div className={`p-3 rounded-lg ${isDark ? 'bg-green-500/10 border border-green-500/20' : 'bg-green-50 border border-green-200'}`}>
+                            <p className={`text-xs ${mutedText} mb-1`}>Above Target</p>
+                            <p className={`text-2xl font-bold text-green-500`}>
+                                {strengths.filter(s => s.achievement >= s.target).length}
+                            </p>
+                        </div>
+                        <div className={`p-3 rounded-lg ${isDark ? 'bg-purple-500/10 border border-purple-500/20' : 'bg-purple-50 border border-purple-200'}`}>
+                            <p className={`text-xs ${mutedText} mb-1`}>Total Outcomes</p>
+                            <p className={`text-2xl font-bold text-purple-500`}>{strengths.length}</p>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
 
             {/* All Strengths Grid */}
             {strengths.length > 5 && (
